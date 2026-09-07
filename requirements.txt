@@ -1,0 +1,6 @@
+opencv-python
+numpy
+insightface
+onnxruntime
+serpapi
+python-dotenv
