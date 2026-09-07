@@ -88,36 +88,42 @@ if identified_name:
     print(f"\nGoogle Lens identified person: {identified_name}")
     kg_link = knowledge_graph.get("link", "")
 
-    # STEP B: targeted Google search for their real social media / official page
+    # STEP B: targeted Google search for their real social media profile
     print(f"Running targeted search for: {identified_name}")
     search_results = client.search({
         "engine": "google",
-        "q": f'"{identified_name}" site:twitter.com OR site:x.com OR site:linkedin.com OR site:instagram.com OR site:en.wikipedia.org',
-        "num": 5
+        "q": f'"{identified_name}" site:twitter.com OR site:x.com OR site:linkedin.com OR site:instagram.com OR site:facebook.com',
+        "num": 10
     })
 
     organic = search_results.get("organic_results", [])
 
+    # Only match actual social media profile URLs
+    social_patterns = [
+        r"x\.com/[^/]+/?$",
+        r"twitter\.com/[^/]+/?$",
+        r"instagram\.com/[^/]+/?$",
+        r"linkedin\.com/in/[^/]+/?$",
+        r"facebook\.com/[^/]+/?$",
+    ]
+
     discovered_url = ""
     for r in organic:
         link = r.get("link", "")
-        # Prefer clean profile URLs
-        profile_patterns = [
-            r"x\.com/[^/]+/?$",
-            r"twitter\.com/[^/]+/?$",
-            r"instagram\.com/[^/]+/?$",
-            r"linkedin\.com/in/[^/]+/?$",
-            r"en\.wikipedia\.org/wiki/",
-        ]
-        if any(re.search(p, link) for p in profile_patterns):
+        if any(re.search(p, link) for p in social_patterns):
             discovered_url = link
             break
 
-    # Fall back to first organic result if no clean profile found
-    if not discovered_url and organic:
-        discovered_url = organic[0].get("link", "")
+    # If no clean profile, take any social media link from results
+    if not discovered_url:
+        for r in organic:
+            link = r.get("link", "")
+            social_domains = ["x.com", "twitter.com", "instagram.com", "linkedin.com", "facebook.com"]
+            if any(d in link for d in social_domains):
+                discovered_url = link
+                break
 
-    # Fall back to knowledge graph link
+    # Last resort: knowledge graph link
     if not discovered_url:
         discovered_url = kg_link
 
@@ -183,27 +189,34 @@ else:
         print(f"Running targeted search for: {voted_name}")
         search_results = client.search({
             "engine": "google",
-            "q": f'"{voted_name}" site:twitter.com OR site:x.com OR site:linkedin.com OR site:instagram.com OR site:en.wikipedia.org',
-            "num": 5
+            "q": f'"{voted_name}" site:twitter.com OR site:x.com OR site:linkedin.com OR site:instagram.com OR site:facebook.com',
+            "num": 10
         })
 
         organic = search_results.get("organic_results", [])
+        social_patterns = [
+            r"x\.com/[^/]+/?$",
+            r"twitter\.com/[^/]+/?$",
+            r"instagram\.com/[^/]+/?$",
+            r"linkedin\.com/in/[^/]+/?$",
+            r"facebook\.com/[^/]+/?$",
+        ]
+
         discovered_url = ""
         for r in organic:
             link = r.get("link", "")
-            profile_patterns = [
-                r"x\.com/[^/]+/?$",
-                r"twitter\.com/[^/]+/?$",
-                r"instagram\.com/[^/]+/?$",
-                r"linkedin\.com/in/[^/]+/?$",
-                r"en\.wikipedia\.org/wiki/",
-            ]
-            if any(re.search(p, link) for p in profile_patterns):
+            if any(re.search(p, link) for p in social_patterns):
                 discovered_url = link
                 break
 
-        if not discovered_url and organic:
-            discovered_url = organic[0].get("link", "")
+        # If no clean profile, take any social media link
+        if not discovered_url:
+            for r in organic:
+                link = r.get("link", "")
+                social_domains = ["x.com", "twitter.com", "instagram.com", "linkedin.com", "facebook.com"]
+                if any(d in link for d in social_domains):
+                    discovered_url = link
+                    break
 
         person_name = voted_name
 
